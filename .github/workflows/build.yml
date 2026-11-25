@@ -64,9 +64,13 @@ jobs:
           sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' $G
           sed -i '0,/^android {/s//android {\n    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }/' $G
           echo '-dontwarn com.google.mlkit.**' > android/app/proguard-rules.pro
-          sed -i '0,/release {/s//release {\n            proguardFiles("proguard-rules.pro")/' $G
+          case "$G" in
+            *.kts) R='isMinifyEnabled = false\n            isShrinkResources = false' ;;
+            *) R='minifyEnabled false\n            shrinkResources false' ;;
+          esac
+          sed -i "0,/release {/s//release {\n            proguardFiles(\"proguard-rules.pro\")\n            $R/" $G
           grep -n "uses-permission" $M
-          grep -n -B1 -A3 "proguardFiles" $G
+          grep -n -B2 -A8 "release {" $G
           grep -n -A4 "^android {" $G
       - name: Remove the default sample test
         run: rm -f test/widget_test.dart
