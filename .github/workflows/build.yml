@@ -63,13 +63,16 @@ jobs:
           G=$(ls android/app/build.gradle*)
           sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' $G
           sed -i '0,/^android {/s//android {\n    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }/' $G
+          echo '-dontwarn com.google.mlkit.**' > android/app/proguard-rules.pro
+          sed -i '0,/release {/s//release {\n            proguardFiles("proguard-rules.pro")/' $G
           grep -n "uses-permission" $M
+          grep -n -B1 -A3 "proguardFiles" $G
           grep -n -A4 "^android {" $G
       - name: Remove the default sample test
         run: rm -f test/widget_test.dart
       - run: flutter pub get
       - name: Build Android APK
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: equishare-apk
