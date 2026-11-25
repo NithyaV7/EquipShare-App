@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../app_state.dart';
 import '../core/theme.dart';
 import '../models.dart';
+import 'notifications.dart';
 import 'profile.dart';
 import 'widgets.dart';
 
@@ -17,7 +18,7 @@ class _RecipientShellState extends State<RecipientShell> {
   Widget build(BuildContext context) {
     const titles = ['EquiShare', 'Offers', 'Pickup tracking', 'Profile'];
     return Scaffold(
-      appBar: AppBar(title: Text(titles[i]), actions: const [SyncPill()]),
+      appBar: AppBar(title: Text(titles[i]), actions: const [NotificationsButton(), SyncPill()]),
       body: IndexedStack(index: i, children: const [
         RecipientHome(),
         OffersTab(),

@@ -73,3 +73,19 @@ bool verifyChain(List<CustodyEntry> chain) {
   }
   return true;
 }
+
+/// Puts entries in chain order by following the hash links.
+/// Entries that do not link in are added at the end, so verification fails for them.
+List<CustodyEntry> orderChain(List<CustodyEntry> entries) {
+  final es = List<CustodyEntry>.of(entries);
+  final out = <CustodyEntry>[];
+  var prev = genesisHash;
+  while (true) {
+    final i = es.indexWhere((e) => e.prevHash == prev);
+    if (i < 0) break;
+    out.add(es.removeAt(i));
+    prev = out.last.hash;
+  }
+  out.addAll(es);
+  return out;
+}

@@ -168,3 +168,39 @@ class Offer {
         synced: j['synced'] as bool? ?? true,
       );
 }
+
+/// An in-app notification. role says which kind of user it is for.
+class AppNote {
+  AppNote({
+    required this.id,
+    required this.role,
+    required this.title,
+    required this.body,
+    required this.time,
+    this.read = false,
+  });
+  final String id;
+  final String role;
+  final String title;
+  final String body;
+  final DateTime time;
+  bool read;
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'role': role,
+        'title': title,
+        'body': body,
+        'time': time.toIso8601String(),
+        'read': read,
+      };
+
+  factory AppNote.fromJson(Map<String, dynamic> j) => AppNote(
+        id: j['id'] as String,
+        role: j['role'] as String,
+        title: j['title'] as String,
+        body: j['body'] as String,
+        time: DateTime.parse(j['time'] as String),
+        read: j['read'] as bool? ?? false,
+      );
+}

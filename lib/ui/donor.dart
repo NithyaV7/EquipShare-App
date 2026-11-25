@@ -6,7 +6,9 @@ import '../domain/compliance.dart';
 import '../domain/date_parser.dart';
 import '../data/report.dart';
 import '../models.dart';
+import '../scan/live_scan_stub.dart' if (dart.library.io) '../scan/live_scan_mlkit.dart';
 import '../scan/scanner_stub.dart' if (dart.library.io) '../scan/scanner_mlkit.dart';
+import 'notifications.dart';
 import 'profile.dart';
 import 'widgets.dart';
 
@@ -22,7 +24,7 @@ class _DonorShellState extends State<DonorShell> {
   Widget build(BuildContext context) {
     const titles = ['EquiShare', 'Batch scan', 'Chain of custody', 'ESG report', 'Profile'];
     return Scaffold(
-      appBar: AppBar(title: Text(titles[i]), actions: const [SyncPill()]),
+      appBar: AppBar(title: Text(titles[i]), actions: const [NotificationsButton(), SyncPill()]),
       body: IndexedStack(index: i, children: [
         DonorHome(onTab: (n) => setState(() => i = n)),
         const ScanTab(),
@@ -207,6 +209,15 @@ class _ScanTabState extends State<ScanTab> {
         ? 'No date yet'
         : 'Expiry ${fmtDate(expiry)}${c != null && c < 0.8 ? ' · low confidence, please confirm' : ''}';
     return ListView(padding: const EdgeInsets.all(16), children: [
+      if (liveScanSupported) ...[
+        ElevatedButton.icon(
+          onPressed: () => Navigator.of(context)
+              .push(MaterialPageRoute(builder: (_) => buildLiveScanScreen())),
+          icon: const Icon(Icons.videocam),
+          label: const Text('Live scan (keeps the camera open)'),
+        ),
+        const SizedBox(height: 8),
+      ],
       if (scannerSupported)
         Row(children: [
           Expanded(
@@ -451,6 +462,18 @@ class CustodyTab extends StatelessWidget {
                     subtitle: Text(
                         '${fmtTime(DateTime.parse(e.timestamp).toLocal())} · #${e.hash.substring(0, 8)}'),
                   ),
+                if (s.cloudMode)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        final m = await s.auditCustody(l.id);
+                        if (context.mounted) snack(context, m);
+                      },
+                      icon: const Icon(Icons.verified_outlined),
+                      label: const Text('Verify with cloud'),
+                    ),
+                  ),
               ],
             ),
           );
@@ -481,13 +504,13 @@ class EsgTab extends StatelessWidget {
       Card(
         child: ListTile(
           leading: const Icon(Icons.co2),
-          title: Text('${(kg * AppState.co2PerKg).toStringAsFixed(1)} kg CO₂e avoided (estimate)'),
+          title: Text('${(kg * s.co2PerKg).toStringAsFixed(1)} kg CO₂e avoided (estimate)'),
         ),
       ),
       Card(
         child: ListTile(
           leading: const Icon(Icons.payments_outlined),
-          title: Text('Rs. ${(kg * AppState.rupeesPerKg).toStringAsFixed(0)} donation value (estimate)'),
+          title: Text('Rs. ${(kg * s.rupeesPerKg).toStringAsFixed(0)} donation value (estimate)'),
         ),
       ),
       const SizedBox(height: 12),
@@ -502,9 +525,9 @@ class EsgTab extends StatelessWidget {
           ]),
         ),
       const SizedBox(height: 16),
-      const Text(
-          'Estimates use placeholder factors (2.5 kg CO₂e and Rs. 600 per kg). Replace them with figures your accountant or regulator accepts.',
-          style: TextStyle(fontSize: 12)),
+      Text(
+          'Estimates use your factors: ${s.co2PerKg} kg CO₂e and Rs. ${s.rupeesPerKg.toStringAsFixed(0)} per kg. Change them in Profile.',
+          style: const TextStyle(fontSize: 12)),
       const SizedBox(height: 12),
       OutlinedButton(onPressed: () => exportEsgPdf(s), child: const Text('Export PDF report')),
     ]);

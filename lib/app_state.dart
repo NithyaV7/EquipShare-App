@@ -39,6 +39,9 @@ class AppState extends ChangeNotifier {
   List<Recipient> recipients = []; // cloud directory (cached)
   Recipient? profile; // the signed-in recipient's own profile
   Set<String> pushed = {}; // custody hashes already uploaded
+  List<AppNote> notes = [];
+  double co2PerKg = 2.5; // editable in Profile
+  double rupeesPerKg = 600;
 
   final List<Recipient> _seeds = seedRecipients();
   StreamSubscription<List<Offer>>? _sub;
@@ -78,6 +81,12 @@ class AppState extends ChangeNotifier {
           ? null
           : Recipient.fromJson(Map<String, dynamic>.from(m['profile'] as Map));
       pushed = {for (final e in (m['pushed'] as List? ?? const [])) e as String};
+      notes = [
+        for (final e in (m['notes'] as List? ?? const []))
+          AppNote.fromJson(Map<String, dynamic>.from(e as Map))
+      ];
+      co2PerKg = (m['co2PerKg'] as num?)?.toDouble() ?? co2PerKg;
+      rupeesPerKg = (m['rupeesPerKg'] as num?)?.toDouble() ?? rupeesPerKg;
     } catch (_) {
       // Corrupt data: start fresh.
     }
@@ -111,6 +120,9 @@ class AppState extends ChangeNotifier {
       'recipients': [for (final r in recipients) r.toJson()],
       'profile': profile?.toJson(),
       'pushed': pushed.toList(),
+      'notes': [for (final n in notes) n.toJson()],
+      'co2PerKg': co2PerKg,
+      'rupeesPerKg': rupeesPerKg,
     })));
   }
 
@@ -179,6 +191,7 @@ class AppState extends ChangeNotifier {
       custody = [];
       recipients = [];
       pushed = {};
+      notes = [];
     }
     role = null;
     uid = null;
@@ -288,12 +301,16 @@ class AppState extends ChangeNotifier {
       final i = offers.indexWhere((o) => o.id == r.id);
       if (i < 0) {
         offers.add(r);
+        if (role == 'recipient' && r.status == 'pending') {
+          _note('recipient', 'New offer', '${r.lotIds.length} lot(s) are waiting for you.');
+        }
         changed = true;
         continue;
       }
       final o = offers[i];
       if (o.synced && o.status != r.status) {
         o.status = r.status;
+        if (role == 'donor') _note('donor', _statusTitle(r.status), 'A recipient updated your offer.');
         changed = true;
       }
       if (role == 'donor' && _applyToLots(o)) changed = true;
@@ -350,19 +367,8 @@ class AppState extends ChangeNotifier {
 
   // ---------- custody ----------
   /// Follows the hash links so the order is always right.
-  List<CustodyEntry> chainFor(String lotId) {
-    final es = custody.where((e) => e.lotId == lotId).toList();
-    final out = <CustodyEntry>[];
-    var prev = genesisHash;
-    while (true) {
-      final i = es.indexWhere((e) => e.prevHash == prev);
-      if (i < 0) break;
-      out.add(es.removeAt(i));
-      prev = out.last.hash;
-    }
-    out.addAll(es); // anything that did not link, so verification fails
-    return out;
-  }
+  List<CustodyEntry> chainFor(String lotId) =>
+      orderChain(custody.where((e) => e.lotId == lotId).toList());
 
   void _log(String lotId, String event) {
     final chain = chainFor(lotId);
@@ -443,6 +449,7 @@ class AppState extends ChangeNotifier {
       synced: false,
     );
     offers.add(o);
+    if (!cloudMode) _note('recipient', 'New offer', '${send.length} lot(s) from $userName.');
     _changed();
     return o;
   }
@@ -472,6 +479,7 @@ class AppState extends ChangeNotifier {
         _log(l.id, 'declined');
       }
     }
+    if (!cloudMode) _note('donor', accept ? 'Offer accepted' : 'Offer declined', '$userName responded to your offer.');
     _changed();
   }
 
@@ -484,13 +492,75 @@ class AppState extends ChangeNotifier {
       l.status = next;
       _log(l.id, next);
     }
+    if (!cloudMode) _note('donor', _statusTitle(next), '$userName updated your offer.');
     _changed();
   }
 
-  // ---------- ESG (estimates use placeholder factors) ----------
-  static const co2PerKg = 2.5;
-  static const rupeesPerKg = 600.0;
+  // ---------- ESG (factors are set by the user in Profile) ----------
+  void setEsgFactors(double co2, double rupees) {
+    co2PerKg = co2;
+    rupeesPerKg = rupees;
+    _changed();
+  }
 
   List<Lot> get deliveredLots => lots.where((l) => l.status == 'delivered').toList();
   double get deliveredKg => deliveredLots.fold(0.0, (a, l) => a + l.kg);
+
+  // ---------- notifications ----------
+  List<AppNote> get myNotes =>
+      notes.where((n) => n.role == role).toList().reversed.toList();
+  int get unreadNotes => notes.where((n) => n.role == role && !n.read).length;
+
+  String _statusTitle(String s) => switch (s) {
+        'accepted' => 'Offer accepted',
+        'declined' => 'Offer declined',
+        'picked_up' => 'Lots picked up',
+        'delivered' => 'Lots delivered',
+        _ => 'Offer updated',
+      };
+
+  void _note(String forRole, String title, String body) {
+    notes.add(AppNote(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      role: forRole,
+      title: title,
+      body: body,
+      time: DateTime.now(),
+    ));
+    if (notes.length > 100) notes.removeAt(0);
+  }
+
+  void markNotesRead() {
+    var ch = false;
+    for (final n in notes) {
+      if (n.role == role && !n.read) {
+        n.read = true;
+        ch = true;
+      }
+    }
+    if (ch) {
+      notifyListeners();
+      _save();
+    }
+  }
+
+  // ---------- audit ----------
+  /// Downloads the cloud copy of a lot's custody log and checks its hashes.
+  Future<String> auditCustody(String lotId) async {
+    try {
+      final remote = await cloud.custodyFor(lotId);
+      if (remote.isEmpty) {
+        return 'Nothing in the cloud yet for this lot. Go online to upload it.';
+      }
+      final chain = orderChain(remote);
+      final waiting =
+          chainFor(lotId).where((e) => !remote.any((r) => r.hash == e.hash)).length;
+      final tail = waiting > 0 ? ' $waiting newer entries are still waiting to upload.' : '';
+      return verifyChain(chain)
+          ? 'Cloud copy verified: ${chain.length} entries, all hashes link correctly.$tail'
+          : 'WARNING: the cloud copy of this log fails verification.';
+    } catch (_) {
+      return 'Could not reach the cloud. Try again when online.';
+    }
+  }
 }

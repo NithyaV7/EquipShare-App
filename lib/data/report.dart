@@ -18,8 +18,8 @@ Future<void> exportEsgPdf(AppState s) async {
       pw.Text('Generated: ${fmtTime(DateTime.now())}'),
       pw.SizedBox(height: 12),
       pw.Text('Delivered: ${kg.toStringAsFixed(1)} kg in ${s.deliveredLots.length} lots'),
-      pw.Text('Estimated CO2e avoided: ${(kg * AppState.co2PerKg).toStringAsFixed(1)} kg'),
-      pw.Text('Estimated donation value: Rs. ${(kg * AppState.rupeesPerKg).toStringAsFixed(0)}'),
+      pw.Text('Estimated CO2e avoided: ${(kg * s.co2PerKg).toStringAsFixed(1)} kg'),
+      pw.Text('Estimated donation value: Rs. ${(kg * s.rupeesPerKg).toStringAsFixed(0)}'),
       pw.SizedBox(height: 12),
       if (rows.isEmpty)
         pw.Text('No delivered lots yet.')
@@ -30,8 +30,8 @@ Future<void> exportEsgPdf(AppState s) async {
         ),
       pw.SizedBox(height: 12),
       pw.Text(
-        'Estimates use placeholder factors (2.5 kg CO2e and Rs. 600 per kg). '
-        'Use figures accepted by your accountant or regulator before filing.',
+        'Estimates use the factors set in the app (${s.co2PerKg} kg CO2e and Rs. ${s.rupeesPerKg.toStringAsFixed(0)} per kg). '
+        'Check them with your accountant or regulator before filing.',
         style: const pw.TextStyle(fontSize: 9),
       ),
     ],

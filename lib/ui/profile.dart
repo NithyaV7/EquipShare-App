@@ -27,6 +27,7 @@ class ProfileTab extends StatelessWidget {
       const SizedBox(height: 12),
       if (s.cloudMode && s.role == 'recipient' && s.profile != null)
         _ProfileEditor(s.profile!),
+      if (s.role == 'donor') const _EsgFactors(),
       ListTile(
         leading: const Icon(Icons.shield_outlined),
         title: const Text('Safe-harbor rule set'),
@@ -151,6 +152,75 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                 onPressed: save,
                 child: const Text('Save')),
           ]),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Lets a donor set the factors used in the ESG report.
+class _EsgFactors extends StatefulWidget {
+  const _EsgFactors();
+  @override
+  State<_EsgFactors> createState() => _EsgFactorsState();
+}
+
+class _EsgFactorsState extends State<_EsgFactors> {
+  late final TextEditingController co2;
+  late final TextEditingController rs;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = AppScope.read(context);
+    co2 = TextEditingController(text: '${s.co2PerKg}');
+    rs = TextEditingController(text: '${s.rupeesPerKg}');
+  }
+
+  void save() {
+    final c = double.tryParse(co2.text.trim());
+    final r = double.tryParse(rs.text.trim());
+    if (c == null || r == null || c < 0 || r < 0) {
+      snack(context, 'Enter two numbers, zero or more.');
+      return;
+    }
+    AppScope.read(context).setEsgFactors(c, r);
+    snack(context, 'ESG factors saved.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('ESG report factors', style: TextStyle(fontWeight: FontWeight.w600)),
+          const Text(
+              'Use figures from your sustainability report or accountant. The report shows the values you enter.',
+              style: TextStyle(fontSize: 12)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: co2,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'kg CO₂e avoided per kg donated', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: rs,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+                labelText: 'Rs. value per kg donated', border: OutlineInputBorder()),
+          ),
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerRight,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(minimumSize: const Size(100, 44)),
+              onPressed: save,
+              child: const Text('Save'),
+            ),
+          ),
         ]),
       ),
     );

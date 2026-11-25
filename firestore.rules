@@ -49,6 +49,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Written only by the optional Cloud Function in functions/.
+    match /custodyChecks/{id} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Append-only. Signed-in users can read entries, which hold only hashes and event names.
     match /custody/{id} {
       allow read: if signedIn();
