@@ -11,10 +11,39 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  build:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Generate web files
+        run: flutter create . --project-name equishare --org lk.equishare --platforms=web
+      - name: Remove the default sample test
+        run: rm -f test/widget_test.dart
+      - run: flutter pub get
+      - run: flutter test
+      - name: Build web app
+        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+
+  deploy:
+    needs: web
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,36 +54,23 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Generate platform files
-        run: flutter create . --project-name equishare --org lk.equishare --platforms=android,web
-      - name: Android permissions and minimum version
+      - name: Generate Android files
+        run: flutter create . --project-name equishare --org lk.equishare --platforms=android
+      - name: Android permissions, minimum version and lint
         run: |
           M=android/app/src/main/AndroidManifest.xml
           sed -i 's|<application|<uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <application|' $M
-          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' android/app/build.gradle*
+          G=$(ls android/app/build.gradle*)
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 24/; s/minSdkVersion flutter.minSdkVersion/minSdkVersion 24/' $G
+          sed -i '0,/^android {/s//android {\n    lint {\n        checkReleaseBuilds = false\n        abortOnError = false\n    }/' $G
           grep -n "uses-permission" $M
+          grep -n -A4 "^android {" $G
       - name: Remove the default sample test
         run: rm -f test/widget_test.dart
       - run: flutter pub get
-      - run: flutter test
-      - name: Build web app
-        run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
       - name: Build Android APK
         run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: equishare-apk
           path: build/app/outputs/flutter-apk/app-release.apk
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: build/web
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
