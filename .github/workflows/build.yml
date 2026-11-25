@@ -69,7 +69,7 @@ jobs:
         run: rm -f test/widget_test.dart
       - run: flutter pub get
       - name: Build Android APK
-        run: flutter build apk --release
+        run: flutter build apk --release --no-shrink
       - uses: actions/upload-artifact@v4
         with:
           name: equishare-apk
