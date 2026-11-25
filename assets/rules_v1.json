@@ -1,0 +1,5 @@
+{
+  "version": "v1-draft",
+  "minDaysLeft": { "food": 1, "medicine": 30 },
+  "restrictedKeywords": ["tramadol", "morphine", "codeine", "diazepam", "fentanyl"]
+}

@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function myRole() {
+      return get(/databases/$(db)/documents/users/$(me())).data.role;
+    }
+    function isLotParty(lotId) {
+      let lot = get(/databases/$(db)/documents/lots/$(lotId)).data;
+      return lot.donorId == me() || lot.get('recipientId', '') == me();
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && me() == uid;
+      allow create: if signedIn() && me() == uid
+        && request.resource.data.role in ['donor', 'recipient'];
+      allow update: if signedIn() && me() == uid
+        && request.resource.data.role == resource.data.role;
+      allow delete: if false;
+    }
+
+    // Public recipient profiles so donors can match to them.
+    match /recipients/{id} {
+      allow read: if signedIn();
+      allow write: if signedIn() && me() == id && myRole() == 'recipient';
+    }
+
+    match /lots/{id} {
+      allow read: if signedIn()
+        && (resource.data.donorId == me() || resource.data.get('recipientId', '') == me());
+      allow create: if signedIn() && myRole() == 'donor'
+        && request.resource.data.donorId == me();
+      allow update: if signedIn() && resource.data.donorId == me()
+        && request.resource.data.donorId == resource.data.donorId;
+      allow delete: if false;
+    }
+
+    match /offers/{id} {
+      allow read: if signedIn()
+        && (resource.data.donorId == me() || resource.data.recipientId == me());
+      allow create: if signedIn() && myRole() == 'donor'
+        && request.resource.data.donorId == me();
+      allow update: if signedIn() && (
+        (resource.data.recipientId == me()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']))
+        || (resource.data.donorId == me() && request.resource.data == resource.data));
+      allow delete: if false;
+    }
+
+    // Append-only. Signed-in users can read entries, which hold only hashes and event names.
+    match /custody/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.actorId == me()
+        && isLotParty(request.resource.data.lotId);
+      allow update: if signedIn() && request.resource.data == resource.data;
+      allow delete: if false;
+    }
+  }
+}

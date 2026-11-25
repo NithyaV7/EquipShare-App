@@ -1,0 +1,32 @@
+name: equishare
+description: EquiShare - local surplus food and medicine redistributor.
+publish_to: 'none'
+version: 0.2.0+2
+
+environment:
+  sdk: ^3.3.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  hive_flutter: ^1.1.0
+  crypto: ^3.0.3
+  google_fonts: ^6.2.1
+  image_picker: ^1.1.2
+  google_mlkit_text_recognition: any
+  google_mlkit_barcode_scanning: any
+  geolocator: any
+  pdf: ^3.11.0
+  printing: any
+  firebase_core: any
+  firebase_auth: any
+  cloud_firestore: any
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/rules_v1.json
