@@ -1,7 +1,9 @@
-const { onDocumentCreated } = require('firebase-functions/v2/firestore');
+const { onDocumentCreated, onDocumentWritten } = require('firebase-functions/v2/firestore');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore } = require('firebase-admin/firestore');
+const { getMessaging } = require('firebase-admin/messaging');
 const { checkEntry } = require('./chain');
+const { pushFor } = require('./push');
 
 initializeApp();
 
@@ -18,5 +20,21 @@ exports.verifyCustodyEntry = onDocumentCreated('custody/{id}', async (event) => 
     ok: result.ok,
     reason: result.reason,
     checkedAt: new Date().toISOString(),
+  });
+});
+
+// Sends a push message to the other side when an offer is created or its status changes.
+exports.notifyOffer = onDocumentWritten('offers/{id}', async (event) => {
+  const before = event.data.before.exists ? event.data.before.data() : null;
+  const after = event.data.after.exists ? event.data.after.data() : null;
+  const msg = pushFor(before, after);
+  if (!msg) return;
+  const user = await getFirestore().collection('users').doc(msg.toUid).get();
+  const token = user.exists ? user.data().fcmToken : null;
+  if (!token) return;
+  await getMessaging().send({
+    token,
+    notification: { title: msg.title, body: msg.body },
+    data: { offerId: event.params.id },
   });
 });

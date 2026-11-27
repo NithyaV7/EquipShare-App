@@ -40,6 +40,7 @@ class AppState extends ChangeNotifier {
   Recipient? profile; // the signed-in recipient's own profile
   Set<String> pushed = {}; // custody hashes already uploaded
   List<AppNote> notes = [];
+  bool allowMedicine = false; // off until legal approval is confirmed
   double co2PerKg = 2.5; // editable in Profile
   double rupeesPerKg = 600;
 
@@ -85,6 +86,7 @@ class AppState extends ChangeNotifier {
         for (final e in (m['notes'] as List? ?? const []))
           AppNote.fromJson(Map<String, dynamic>.from(e as Map))
       ];
+      allowMedicine = m['allowMedicine'] as bool? ?? false;
       co2PerKg = (m['co2PerKg'] as num?)?.toDouble() ?? co2PerKg;
       rupeesPerKg = (m['rupeesPerKg'] as num?)?.toDouble() ?? rupeesPerKg;
     } catch (_) {
@@ -103,6 +105,7 @@ class AppState extends ChangeNotifier {
     _listen();
     unawaited(syncNow());
     if (cloudMode && role == 'donor') unawaited(refreshRecipients());
+    if (cloudMode) unawaited(cloud.registerPush(uid!));
   }
 
   void _save() {
@@ -121,6 +124,7 @@ class AppState extends ChangeNotifier {
       'profile': profile?.toJson(),
       'pushed': pushed.toList(),
       'notes': [for (final n in notes) n.toJson()],
+      'allowMedicine': allowMedicine,
       'co2PerKg': co2PerKg,
       'rupeesPerKg': rupeesPerKg,
     })));
@@ -172,6 +176,7 @@ class AppState extends ChangeNotifier {
       _changed();
       _listen();
       if (u.role == 'donor') unawaited(refreshRecipients());
+      unawaited(cloud.registerPush(u.uid));
       return null;
     } on CloudException catch (e) {
       return e.message;
@@ -381,6 +386,30 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------- donor: scanning and compliance ----------
+  void setAllowMedicine(bool v) {
+    allowMedicine = v;
+    _changed();
+  }
+
+  /// The compliance rules, plus the beta safeguard for medicine lots.
+  ComplianceResult check({
+    required String name,
+    required LotCategory category,
+    required DateTime? expiry,
+  }) {
+    final r = evaluate(name: name, category: category, expiry: expiry, rules: rules);
+    if (category == LotCategory.medicine &&
+        !allowMedicine &&
+        (r.verdict == Verdict.cleared || r.verdict == Verdict.flagged)) {
+      return ComplianceResult(
+        Verdict.review,
+        'Medicine lots are switched off. Turn them on in Profile only after legal approval.',
+        ruleSetVersion: rules.version,
+      );
+    }
+    return r;
+  }
+
   List<Lot> get batch =>
       lots.where((l) => l.status == 'scanned' && l.donorId == userId).toList();
 
@@ -391,7 +420,7 @@ class AppState extends ChangeNotifier {
     required DateTime? expiry,
     required double kg,
   }) {
-    final r = evaluate(name: name, category: category, expiry: expiry, rules: rules);
+    final r = check(name: name, category: category, expiry: expiry);
     final lot = Lot(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
       name: name,

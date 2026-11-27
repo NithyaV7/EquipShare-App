@@ -1,4 +1,6 @@
-# Optional: server-side custody check
+# Optional: server functions (background push and custody check)
+
+This folder deploys two functions. `notifyOffer` sends a phone notification when an offer arrives or its status changes, even if the app is closed. `verifyCustodyEntry` checks each custody entry on the server. Both need the same setup below.
 
 The app already checks each custody log on the phone, and the **Verify with cloud** button re-checks the cloud copy. This optional step adds a check that runs on Google's servers every time an entry is saved, and records the result in a `custodyChecks` collection.
 
@@ -21,3 +23,9 @@ It needs the **Blaze** (pay as you go) Firebase plan. Small projects like this o
 `reason: previous entry not found yet` can appear briefly when entries arrive out of order. It is not an error by itself.
 
 The check logic is in `functions/chain.js`. It was tested against the app's hash format, including a tampered entry and a missing previous entry.
+
+## Background push notifications
+- The app saves each phone's notification token in the user's `users` document when they sign in. On Android 13 or newer, the phone asks for permission to show notifications the first time.
+- `notifyOffer` reads that token and sends the message. It sends a "New offer" message to the recipient, and an update message to the donor when the status changes.
+- Without these functions, notifications still appear inside the app through the bell icon.
+- Web push is not included.

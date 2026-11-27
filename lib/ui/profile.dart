@@ -28,6 +28,15 @@ class ProfileTab extends StatelessWidget {
       if (s.cloudMode && s.role == 'recipient' && s.profile != null)
         _ProfileEditor(s.profile!),
       if (s.role == 'donor') const _EsgFactors(),
+      if (s.role == 'donor')
+        SwitchListTile(
+          secondary: const Icon(Icons.medication_outlined),
+          title: const Text('Allow medicine lots'),
+          subtitle: const Text(
+              'Off by default. Turn on only after you have confirmed that redistributing medicine is permitted.'),
+          value: s.allowMedicine,
+          onChanged: s.setAllowMedicine,
+        ),
       ListTile(
         leading: const Icon(Icons.shield_outlined),
         title: const Text('Safe-harbor rule set'),

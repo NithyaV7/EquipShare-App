@@ -1,7 +1,7 @@
 name: equishare
 description: EquiShare - local surplus food and medicine redistributor.
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: ^3.3.0
@@ -21,6 +21,7 @@ dependencies:
   printing: any
   firebase_core: any
   firebase_auth: any
+  firebase_messaging: any
   cloud_firestore: any
 
 dev_dependencies:

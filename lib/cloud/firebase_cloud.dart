@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import '../data/custody.dart';
 import '../models.dart';
 import 'cloud.dart';
@@ -114,5 +116,32 @@ class FirebaseCloud implements Cloud {
         .get()
         .timeout(_t);
     return [for (final d in s.docs) CustodyEntry.fromJson(d.data())];
+  }
+
+  bool _listeningForToken = false;
+
+  @override
+  Future<void> registerPush(String uid) async {
+    if (kIsWeb) return; // web push needs extra setup, not included
+    try {
+      final m = FirebaseMessaging.instance;
+      await m.requestPermission();
+      final token = await m.getToken();
+      if (token != null) {
+        await _db
+            .collection('users')
+            .doc(uid)
+            .set({'fcmToken': token}, SetOptions(merge: true))
+            .timeout(_t);
+      }
+      if (!_listeningForToken) {
+        _listeningForToken = true;
+        m.onTokenRefresh.listen((t) {
+          _db.collection('users').doc(uid).set({'fcmToken': t}, SetOptions(merge: true));
+        });
+      }
+    } catch (_) {
+      // Push is optional. The app keeps working without it.
+    }
   }
 }

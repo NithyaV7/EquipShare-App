@@ -197,7 +197,7 @@ class _LiveScanScreenState extends State<LiveScanScreen> {
   Widget build(BuildContext context) {
     final s = AppScope.of(context);
     final c = _cam;
-    final result = evaluate(name: _name.text, category: _cat, expiry: _expiry, rules: s.rules);
+    final result = s.check(name: _name.text, category: _cat, expiry: _expiry);
     final conf = _conf;
     Widget body;
     if (_error != null) {

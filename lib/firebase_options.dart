@@ -1,22 +1,24 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
-/// Paste your own values here. See FIREBASE_SETUP.md.
-/// While any value still starts with PASTE, the app runs in local demo mode.
+/// If any value starts with PASTE, that platform runs in local demo mode.
 class DefaultFirebaseOptions {
   static const web = FirebaseOptions(
-    apiKey: 'PASTE_WEB_API_KEY',
-    appId: 'PASTE_WEB_APP_ID',
-    messagingSenderId: 'PASTE_SENDER_ID',
-    projectId: 'PASTE_PROJECT_ID',
-    authDomain: 'PASTE_PROJECT_ID.firebaseapp.com',
+    apiKey: 'AIzaSyAbNuPhXYvo9DsCpH_jLwzmnhvvOeMWOZc',
+    appId: '1:734166719333:web:039c4ff9248822ae761f8c',
+    messagingSenderId: '734166719333',
+    projectId: 'equipshare-b8836',
+    authDomain: 'equipshare-b8836.firebaseapp.com',
+    storageBucket: 'equipshare-b8836.firebasestorage.app',
   );
 
+  // From google-services.json for package lk.equishare.equishare.
   static const android = FirebaseOptions(
-    apiKey: 'PASTE_ANDROID_API_KEY',
-    appId: 'PASTE_ANDROID_APP_ID',
-    messagingSenderId: 'PASTE_SENDER_ID',
-    projectId: 'PASTE_PROJECT_ID',
+    apiKey: 'AIzaSyDajCcFZXrEBT1rNRxFWJ3AUwrBv437rUs',
+    appId: '1:734166719333:android:5b5200db17642a9d761f8c',
+    messagingSenderId: '734166719333',
+    projectId: 'equipshare-b8836',
+    storageBucket: 'equipshare-b8836.firebasestorage.app',
   );
 
   static FirebaseOptions get currentPlatform => kIsWeb ? web : android;

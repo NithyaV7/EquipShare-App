@@ -14,3 +14,4 @@ linux/
 macos/
 windows/
 .metadata
+.DS_Store

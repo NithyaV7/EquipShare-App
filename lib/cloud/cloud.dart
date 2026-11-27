@@ -35,6 +35,8 @@ abstract class Cloud {
   Future<Recipient?> loadProfile(String uid);
   Future<void> saveProfile(Recipient r);
   Future<List<CustodyEntry>> custodyFor(String lotId);
+  /// Saves this phone's notification token so the server can send push messages.
+  Future<void> registerPush(String uid);
 }
 
 class LocalCloud implements Cloud {
@@ -68,4 +70,6 @@ class LocalCloud implements Cloud {
   Future<void> saveProfile(Recipient r) async {}
   @override
   Future<List<CustodyEntry>> custodyFor(String lotId) async => [];
+  @override
+  Future<void> registerPush(String uid) async {}
 }
