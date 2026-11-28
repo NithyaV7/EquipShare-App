@@ -4,7 +4,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 /// Gemini model names the assistant tries, in order. Google retires old names over time.
 /// If the assistant says a model was not found, check the current names in the Firebase
 /// AI Logic documentation and edit this list.
-const kAiModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
+const kAiModels = ['gemini-3.8-flash', 'gemini-3.5-flash-lite', 'gemini-3.6-flash'];
 
 /// How long to wait for an answer before showing an error.
 const _timeout = Duration(seconds: 25);
@@ -58,8 +58,12 @@ class ChatService {
       } catch (e) {
         last = e;
         final l = e.toString().toLowerCase();
-        final modelProblem =
-            l.contains('model') && (l.contains('not found') || l.contains('404') || l.contains('not supported'));
+        final modelProblem = l.contains('model') &&
+            (l.contains('not found') ||
+                l.contains('404') ||
+                l.contains('not supported') ||
+                l.contains('no longer available') ||
+                l.contains('update your code'));
         final serverBusy = l.contains('503') ||
             l.contains('server error') ||
             l.contains('high demand') ||
@@ -126,6 +130,8 @@ String aiErrorMessage(Object e) {
     why = 'No internet connection. The assistant needs internet.';
   } else if (lower.contains('quota') || lower.contains('429') || lower.contains('rate')) {
     why = 'The assistant is busy or the free limit was reached. Try again in a minute.';
+  } else if (lower.contains('no longer available') || lower.contains('update your code')) {
+    why = 'A model name used by the assistant has been retired by Google. The list of model names in the app needs updating.';
   } else if (lower.contains('not found') ||
       lower.contains('404') ||
       lower.contains('permission') ||
