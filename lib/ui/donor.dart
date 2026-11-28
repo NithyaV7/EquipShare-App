@@ -5,9 +5,11 @@ import '../data/custody.dart';
 import '../domain/compliance.dart';
 import '../domain/date_parser.dart';
 import '../data/report.dart';
+import '../chat/chat_service.dart';
 import '../models.dart';
 import '../scan/live_scan_stub.dart' if (dart.library.io) '../scan/live_scan_mlkit.dart';
 import '../scan/scanner_stub.dart' if (dart.library.io) '../scan/scanner_mlkit.dart';
+import 'chat_screen.dart';
 import 'notifications.dart';
 import 'profile.dart';
 import 'widgets.dart';
@@ -24,7 +26,7 @@ class _DonorShellState extends State<DonorShell> {
   Widget build(BuildContext context) {
     const titles = ['EquiShare', 'Batch scan', 'Chain of custody', 'ESG report', 'Profile'];
     return Scaffold(
-      appBar: AppBar(title: Text(titles[i]), actions: const [NotificationsButton(), SyncPill()]),
+      appBar: AppBar(title: Text(titles[i]), actions: const [ChatButton(), NotificationsButton(), SyncPill()]),
       body: IndexedStack(index: i, children: [
         DonorHome(onTab: (n) => setState(() => i = n)),
         const ScanTab(),
@@ -145,6 +147,49 @@ class _ScanTabState extends State<ScanTab> {
     }
   }
 
+  Future<void> suggestName() async {
+    if (label.text.trim().isEmpty) {
+      snack(context, 'Read a label first, or type its text above.');
+      return;
+    }
+    snack(context, 'Asking the assistant…');
+    try {
+      final r = await ChatService.instance.suggest(label.text);
+      if (!mounted) return;
+      final lines = r.split('\n').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+      if (lines.isEmpty) {
+        snack(context, 'No suggestion. Type the name yourself.');
+        return;
+      }
+      final suggested = lines.first;
+      final note = lines.length > 1 ? lines.sublist(1).join(' ') : '';
+      showDialog<void>(
+        context: context,
+        builder: (dc) => AlertDialog(
+          title: const Text('Suggested name'),
+          content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(suggested, style: const TextStyle(fontWeight: FontWeight.w600)),
+            if (note.isNotEmpty) ...[const SizedBox(height: 8), Text(note)],
+            const SizedBox(height: 8),
+            const Text('Check it against the label. AI can be wrong.', style: TextStyle(fontSize: 12)),
+          ]),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dc).pop(), child: const Text('Close')),
+            TextButton(
+              onPressed: () {
+                setState(() => name.text = suggested);
+                Navigator.of(dc).pop();
+              },
+              child: const Text('Use name'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      if (mounted) snack(context, aiErrorMessage(e));
+    }
+  }
+
   void useSample() {
     final items = [
       ('Whole Milk 1L', '5012345678900', LotCategory.food, 3),
@@ -256,6 +301,15 @@ class _ScanTabState extends State<ScanTab> {
       TextField(
           controller: name,
           decoration: const InputDecoration(labelText: 'Item name', border: OutlineInputBorder())),
+      if (s.cloud.enabled)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: suggestName,
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Suggest name with AI'),
+          ),
+        ),
       const SizedBox(height: 8),
       TextField(
           controller: barcode,
