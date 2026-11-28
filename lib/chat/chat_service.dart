@@ -4,7 +4,7 @@ import 'package:firebase_ai/firebase_ai.dart';
 /// Gemini model names the assistant tries, in order. Google retires old names over time.
 /// If the assistant says a model was not found, check the current names in the Firebase
 /// AI Logic documentation and edit this list.
-const kAiModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+const kAiModels = ['gemini-2.5-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
 
 /// How long to wait for an answer before showing an error.
 const _timeout = Duration(seconds: 25);
@@ -61,6 +61,9 @@ class ChatService {
         final modelProblem =
             l.contains('model') && (l.contains('not found') || l.contains('404') || l.contains('not supported'));
         final serverBusy = l.contains('503') ||
+            l.contains('server error') ||
+            l.contains('high demand') ||
+            l.contains('currently experiencing') ||
             l.contains('deadline') ||
             l.contains('overloaded') ||
             l.contains('unavailable') ||
@@ -108,10 +111,13 @@ String aiErrorMessage(Object e) {
   if (e is TimeoutException) {
     why = 'The assistant took too long to answer. Try again in a moment.';
   } else if (lower.contains('503') ||
+      lower.contains('server error') ||
+      lower.contains('high demand') ||
+      lower.contains('currently experiencing') ||
       lower.contains('deadline') ||
       lower.contains('overloaded') ||
       lower.contains('unavailable')) {
-    why = 'The assistant service is busy right now. Wait a minute and try again.';
+    why = 'The assistant model is busy right now. Wait a minute and try again.';
   } else if (lower.contains('socket') ||
       lower.contains('network') ||
       lower.contains('host lookup') ||
